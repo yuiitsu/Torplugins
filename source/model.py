@@ -4,285 +4,273 @@ import MySQLdb
 from conf.config import CONF
 
 class baseModel(object):
-	''' 数据类
-	'''
+    ''' 数据类
+    '''
 
-	def __init__(self):
-		''' 初始化
-		'''
+    strTableName = ''
 
-		if CONF['isDataBase']:
-			strDbHost = CONF['DB_HOST']
-			strDbUser = CONF['DB_USER']
-			strDbPass = CONF['DB_PASS']
-			strDbBase = CONF['DB_BASE']
+    def __init__(self):
+        ''' 初始化
+        '''
 
-			# 连接MYSQL
-			self.db = MySQLdb.connect(strDbHost, strDbUser, strDbPass, strDbBase, use_unicode = 1, charset = 'utf8')
-			self.cursor = self.db.cursor(cursorclass=MySQLdb.cursors.DictCursor)
+        if CONF['isDataBase']:
+            strDbHost = CONF['DB_HOST']
+            strDbUser = CONF['DB_USER']
+            strDbPass = CONF['DB_PASS']
+            strDbBase = CONF['DB_BASE']
 
+        # 连接MYSQL
+        self.db = MySQLdb.connect(strDbHost, strDbUser, strDbPass, strDbBase, use_unicode = 1, charset = 'utf8')
+        self.cursor = self.db.cursor(cursorclass=MySQLdb.cursors.DictCursor)
 
-	def find(self, strTableName, strType, dicData, booFormatData = True):
-		''' 读取一组数据
 
-		@params strTableName string 表名
-		@params strType string 类型，可以是list, first
-		@prams dicData dict 数据字典
-		@params booFormatData bool 是否格式化数据，默认为True
-		'''
+    def find(self, strTableName, strType, dicData, booFormatData = True):
+        ''' 读取一组数据
 
-		if booFormatData:
-			dicData = self.formatData(dicData)
+        @params strTableName string 表名
+        @params strType string 类型，可以是list, first
+        @prams dicData dict 数据字典
+        @params booFormatData bool 是否格式化数据，默认为True
+        '''
 
-		strTableName = self.buildTableName(strTableName)
-		
-		strFields = self.buildFields(dicData['fields'])
+        if booFormatData:
+            dicData = self.formatData(dicData)
 
-		strCondition = self.buildCondition(dicData['condition'])
+        strTableName = self.buildTableName(strTableName)
 
-		strJoin = self.buildJoin(dicData['join'])
+        strFields = self.buildFields(dicData['fields'])
 
-		strLimit = self.buildLimit(dicData['limit'])
+        strCondition = self.buildCondition(dicData['condition'])
 
-		strOrder = self.buildOrder(dicData['order'])
+        strJoin = self.buildJoin(dicData['join'])
 
-		strSql = "select %s from %s %s %s %s %s" % (strFields, strTableName, strJoin, strCondition, strOrder, strLimit)
-		#print strSql
-		
-		self.cursor.execute(strSql)
+        strLimit = self.buildLimit(dicData['limit'])
 
-		if strType == 'list':
-			dicList = self.cursor.fetchall()
-		else:
-			dicList = self.cursor.fetchone()
+        strOrder = self.buildOrder(dicData['order'])
 
-		return dicList
+        strSql = "select %s from %s %s %s %s %s" % (strFields, strTableName, strJoin, strCondition, strOrder, strLimit)
+        #print strSql
 
+        self.cursor.execute(strSql)
 
-	def paginate(self, strTableName, dicData):
-		''' 分页读取数据
+        if strType == 'list':
+            dicList = self.cursor.fetchall()
+        else:
+            dicList = self.cursor.fetchone()
 
-		@params strTableName string 表名
-		@params dicData dict 数据字典，可以包裹field, fields, condition等key
-		'''
+        return dicList
 
-		dicData = self.formatData(dicData)
 
-		# 页码
-		intPage = dicData['page'] if dicData.has_key('page') else 1
-		intPageNum = dicData['limit'][1] if dicData.has_key('limit') else ''
-		intStartLimit = (intPage - 1) * int(intPageNum)
+    def paginate(self, strTableName, dicData):
+        ''' 分页读取数据
 
-		dicData['limit'] = [str(intStartLimit), intPageNum]
+        @params strTableName string 表名
+        @params dicData dict 数据字典，可以包裹field, fields, condition等key
+        '''
 
-		# 总条数
-		intRows = self.getRows(strTableName, {
-			'fields': ['count(*) as count'],
-			'condition': dicData['condition'],
-			'join': dicData['join']
-		}, False)
+        dicData = self.formatData(dicData)
+        #print dicData
+        # 页码
+        intPage = dicData['page'] if dicData.has_key('page') else 1
+        intPageNum = dicData['limit'][1] if dicData.has_key('limit') else ''
+        intStartLimit = (intPage - 1) * int(intPageNum)
+        #print "in model:", intPage, intPageNum, intStartLimit
+        dicData['limit'] = [str(intStartLimit), intPageNum]
 
-		# 获取数据
-		tupList = self.find(strTableName, 'list', dicData, False)
+        # 总条数
+        intRows = self.getRows(strTableName, {
+            'fields': ['count(*) as count'],
+            'condition': dicData['condition'],
+            'join': dicData['join']
+        }, False)
 
-		return [tupList, intRows]
+        # 获取数据
+        tupList = self.find(strTableName, 'list', dicData, False)
 
-	def getRows(self, strTableName, dicData, booFormatData = True):
-		''' 获取数据记录数
+        return [tupList, intRows]
 
-		@params strTableName string 表名
-		@params dicData dict 数据字典
-		@params booFormatData bool 是否格式化数据，默认为True
-		'''
+    def getRows(self, strTableName, dicData, booFormatData = True):
+        ''' 获取数据记录数
 
-		if booFormatData:
-			dicData = self.formatData(dicData)
+        @params strTableName string 表名
+        @params dicData dict 数据字典
+        @params booFormatData bool 是否格式化数据，默认为True
+        '''
 
-		strTableName = self.buildTableName(strTableName)
+        if booFormatData:
+            dicData = self.formatData(dicData)
 
-		strFields = self.buildFields(dicData['fields'])
+        strTableName = self.buildTableName(strTableName)
 
-		strJoin = self.buildJoin(dicData['join'])
+        strFields = self.buildFields(dicData['fields'])
 
-		strCondition = self.buildCondition(dicData['condition'])
+        strJoin = self.buildJoin(dicData['join'])
 
-		strSql = "select %s from %s %s %s" % (strFields, strTableName, strJoin, strCondition)
-		#print strSql
+        strCondition = self.buildCondition(dicData['condition'])
 
-		self.cursor.execute(strSql)
+        strSql = "select %s from %s %s %s" % (strFields, strTableName, strJoin, strCondition)
+        #print strSql
 
-		dicRows = self.cursor.fetchone()
+        self.cursor.execute(strSql)
 
-		return dicRows['count'] if dicRows else 0
+        dicRows = self.cursor.fetchone()
 
+        return dicRows['count'] if dicRows else 0
 
-	def insert(self, strTableName, dicData):
-		''' 插入数据
-		
-		@params strTableName string 表名
-		@params dicData dict 数据字典
-		'''
-		dicData = self.formatData(dicData)
-		strTableName = self.buildTableName(strTableName)
 
-		# 插入多条（待完）
-		#if type(dicData['val']) == list:
-		#	print ','.join(str(dicData['val']))
+    def insert(self, strTableName, dicData):
+        ''' 插入数据
 
+        @params strTableName string 表名
+        @params dicData dict 数据字典
+        '''
+        dicData = self.formatData(dicData)
+        strTableName = self.buildTableName(strTableName)
 
-		strSql = "insert into %s (%s) values (%s)" % (strTableName, dicData['key'], dicData['val'])
-		self.cursor.execute(strSql)
+        # 插入多条（待完）
+        #if type(dicData['val']) == list:
+        #	print ','.join(str(dicData['val']))
 
+        # 转义
+        #dicData['val'] = dicData['val'].replace('\'', '\\\'').replace('"', '\"')
+        #print dicData['val']
 
-	def update(self, strTableName, dicData):
-		''' 修改数据
-		
-		@params strTableName string 表名
-		@params dicData dict 数据字典
-		'''
-		
-		dicData = self.formatData(dicData)
-		strTableName = self.buildTableName(strTableName)
-		strFields = self.buildFields(dicData['fields'])
-		strCondition = self.buildCondition(dicData['condition'])
-		
-		strSql = "update %s set %s %s" % (strTableName, strFields, strCondition)
-		self.cursor.execute(strSql)
+        strSql = "insert into %s (%s) values (%s)" % (strTableName, dicData['key'], dicData['val'])
+        #print strSql.encode('utf8')
+        return self.cursor.execute(strSql)
 
 
-	def delete(self, strTableName, dicData):
-		''' 删除数据
-		
-		@params strTableName string 表名
-		@params dicData dict 数据字典
-		'''
+    def update(self, strTableName, dicData):
+        ''' 修改数据
 
-		dicData = self.formatData(dicData)
-		strTableName = self.buildTableName(strTableName)
-		strCondition = self.buildCondition(dicData['condition'])
-		
-		strSql = "delete from %s %s" % (strTableName, strCondition)
-		self.cursor.execute(strSql)
+        @params strTableName string 表名
+        @params dicData dict 数据字典
+        '''
 
+        dicData = self.formatData(dicData)
+        strTableName = self.buildTableName(strTableName)
+        strFields = self.buildFields(dicData['fields'])
+        strCondition = self.buildCondition(dicData['condition'])
 
-	def formatData(self, dicData):
-		''' 格式化数据
-		将fields, condition, join 等数据格式化返回
+        strSql = "update %s set %s %s" % (strTableName, strFields, strCondition)
+        #print strSql
+        return self.cursor.execute(strSql)
 
-		@params dicData dict 数据字典
-		'''
 
-		# fileds
-		dicData['fields'] = dicData['fields'] if dicData.has_key('fields') else ''
-		
-		# join
-		dicData['join'] = dicData['join'] if dicData.has_key('join') else ''
+    def delete(self, strTableName, dicData):
+        ''' 删除数据
 
-		# conditon
-		dicData['condition'] = dicData['condition'] if dicData.has_key('condition') else ''
+        @params strTableName string 表名
+        @params dicData dict 数据字典
+        '''
+        dicData = self.formatData(dicData)
+        strTableName = self.buildTableName(strTableName)
+        strCondition = self.buildCondition(dicData['condition'])
 
-		# order
-		dicData['order'] = dicData['order'] if dicData.has_key('order') else ''
+        strSql = "delete from %s %s" % (strTableName, strCondition)
+        #print strSql
+        return self.cursor.execute(strSql)
 
-		# limit
-		dicData['limit'] = dicData['limit'] if dicData.has_key('limit') else ''
 
-		# key
-		dicData['key'] = dicData['key'] if dicData.has_key('key') else ''
+    def formatData(self, dicData):
+        ''' 格式化数据
+        将fields, condition, join 等数据格式化返回
 
-		# val
-		dicData['val'] = dicData['val'] if dicData.has_key('val') else ''
+        @params dicData dict 数据字典
+        '''
 
+        # fileds
+        dicData['fields'] = dicData['fields'] if dicData.has_key('fields') else ''
 
-		return dicData
+        # join
+        dicData['join'] = dicData['join'] if dicData.has_key('join') else ''
 
+        # conditon
+        dicData['condition'] = dicData['condition'] if dicData.has_key('condition') else ''
 
-	def buildTableName(self, strTableName):
-		''' 构建表名
-		根据配置文件中的表前辍，构建表名
+        # order
+        dicData['order'] = dicData['order'] if dicData.has_key('order') else ''
 
-		@params strTableName string 表名
-		'''
+        # limit
+        dicData['limit'] = dicData['limit'] if dicData.has_key('limit') else ''
 
-		strTableName = CONF['DB_TABLEPRE'] + strTableName if CONF['DB_TABLEPRE'] else strTableName
+        # key
+        dicData['key'] = dicData['key'] if dicData.has_key('key') else ''
 
-		return strTableName
+        # val
+        dicData['val'] = dicData['val'] if dicData.has_key('val') else ''
 
-	
-	def buildFields(self, lisFields):
-		''' 构建读取字段
 
-		@params lisFields list 字段列表
-		'''
-		
-		strFields = ','.join(lisFields) if lisFields else '*'
+        return dicData
 
-		return strFields
-		
-		
-	def buildJoin(self, strJoin):
-		''' 构建Join
 
-		@params dicCondition dict 条件字典
-		'''
+    def buildTableName(self, strTableName):
+        ''' 构建表名
+        根据配置文件中的表前辍，构建表名
 
-		return 'LEFT JOIN %s' % strJoin if strJoin else ''
+        @params strTableName string 表名
+        '''
 
+        strTableName = CONF['DB_TABLEPRE'] + strTableName if CONF['DB_TABLEPRE'] else strTableName
 
-	def buildCondition(self, strCondition):
-		''' 构建条件
+        return strTableName
 
-		@params dicCondition dict 条件字典
-		'''
 
-		return 'where %s' % strCondition
+    def buildFields(self, lisFields):
+        ''' 构建读取字段
 
-	
-	def buildOrder(self, strOrder):
-		''' 构建order
-		未完成
+        @params lisFields list 字段列表
+        '''
 
-		@params
-		'''
+        strFields = ','.join(lisFields) if lisFields else '*'
 
-		#strOrder = strOrder
+        return strFields
 
-		return 'order by ' + strOrder if strOrder else ''
 
+    def buildJoin(self, strJoin):
+        ''' 构建Join
 
-	def buildLimit(self, lisLimit):
-		''' 构建limit
+        @params dicCondition dict 条件字典
+        '''
 
-		@params lisLimit list limit
-		'''
+        return 'LEFT JOIN %s' % strJoin if strJoin else ''
 
-		strLimit = ','.join(lisLimit) if lisLimit else ''
 
-		return 'limit ' + strLimit if strLimit else ''
+    def buildCondition(self, strCondition):
+        ''' 构建条件
 
+        @params dicCondition dict 条件字典
+        '''
 
-	def escapeString(self, dicData):
-		if dicData:
-			if isinstance(dicData, dict) == False:
-				#print dicData
-				if type(dicData) == str or type(dicData) == unicode:
-					dicData = dicData.encode('utf8')
-				return MySQLdb.escape_string(dicData)
-			else:
-				for k, v in dicData.iteritems():
-					#print type(v)
-					if type(v) == str or type(v) == unicode:
-						v = v.encode('utf8')
-					#print v
+        return 'where %s' % strCondition if strCondition else ''
 
-					dicData[k] = MySQLdb.escape_string(str(v))
-					#dicData[k] = str(v).replace('\'', '\\\'').replace('"', '\"')
-				#exit()
-				return dicData
-		return False
 
+    def buildOrder(self, strOrder):
+        ''' 构建order
+        未完成
 
-	def __del__(self):
+        @params
+        '''
 
-		if CONF['isDataBase']:
-			self.db.close()
+        #strOrder = strOrder
+
+        return 'order by ' + strOrder if strOrder else ''
+
+
+    def buildLimit(self, lisLimit):
+        ''' 构建limit
+
+        @params lisLimit list limit
+        '''
+
+        strLimit = ','.join(lisLimit) if lisLimit else ''
+
+        return 'limit ' + strLimit if strLimit else ''
+
+    def __del__(self):
+
+        if CONF['isDataBase']:
+            try:
+                self.db.close()
+            except Exception, e:
+                pass
