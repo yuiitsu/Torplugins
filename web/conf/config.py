@@ -17,10 +17,10 @@ CONF = {
 
 	# 数据库
 	'isDataBase': True, # 是否使用数据库，默认为False，开启后，请配置数据库信息
-	'DB_HOST': 'rdsbzwo10xk4ag3yf929.mysql.rds.aliyuncs.com',
-	'DB_USER': 'onlyfu',
-	'DB_PASS': 'OLuy9I4gAcdTTfYF',
-	'DB_BASE': 'zoba',
+	'DB_HOST': '',
+	'DB_USER': '',
+	'DB_PASS': '',
+	'DB_BASE': '',
 	'DB_TABLEPRE': '',
 
 
