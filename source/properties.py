@@ -3,7 +3,7 @@
 配置文件属性
 """
 
-import ConfigParser
+import configparser
 from tools.logs import Logs
 
 
@@ -14,9 +14,9 @@ class Properties(object):
 
     def __init__(self, file_name=None):
         file_name = file_name if file_name else 'setting'
-        self.properties = ConfigParser.ConfigParser()
+        self.properties = configparser.ConfigParser()
         try:
-            self.properties.read('/opt/wmb2c/' + file_name + '.conf')
+            self.properties.read('/Users/fuweiyi/code/apps/conf/wmb2c/' + file_name + '.conf', encoding='utf-8')
         except Exception as e:
             self.logger.exception(e)
 
@@ -25,3 +25,4 @@ class Properties(object):
             return self.properties.get(section, option)
         except Exception as e:
             self.logger.exception(e)
+            return ""

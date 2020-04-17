@@ -1,10 +1,14 @@
 # -*- coding:utf-8 -*-
 
 """
-@author: delu
-@file: en.py
-@time: 17/5/4 下午4:50
+@author: Yuiitsu
+@time: 18/10/10 16:08
 """
-Code = {
-    'SUCCESS': 'success',
-}
+from .base_lan import LangBase
+
+
+LangBase.update({
+    'name': 'name',
+})
+
+LangDict = LangBase

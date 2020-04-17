@@ -3,12 +3,14 @@
 同步数据类
 """
 
-import MySQLdb
+# import MySQLdb
+import pymysql
 from DBUtils.PooledDB import PooledDB
 from source.properties import Properties
 from source.sql_builder import SqlBuilder
 from source.sql_constants import SqlConstants
 from source.sql_builder_orm import SqlBuilderOrm
+from tools.logs import Logs
 
 properties = Properties()
 
@@ -19,38 +21,43 @@ class ModelBase(SqlBuilder):
     """
     sql_constants = SqlConstants
     pool = PooledDB(
-        creator=MySQLdb,
+        creator=pymysql,
         mincached=1,
         maxcached=5,
+        blocking=True,
+        reset=True,
         host=properties.get('jdbc', 'DB_HOST'),
         user=properties.get('jdbc', 'DB_USER'),
         passwd=properties.get('jdbc', 'DB_PASS'),
         db=properties.get('jdbc', 'DB_BASE'),
         port=int(properties.get('jdbc', 'DB_PORT')),
         use_unicode=1,
-        charset='utf8'
+        charset='utf8',
+        cursorclass=pymysql.cursors.DictCursor
     )
     sql_builder_orm = None
     if not sql_builder_orm:
         sql_builder_orm = SqlBuilderOrm()
+
+    logger = Logs().logger
 
     def __init__(self):
         """
         初始化
         """
         self.conn = self.pool.connection()
-        self.cursor = self.conn.cursor(cursorclass=MySQLdb.cursors.DictCursor)
+        self.cursor = self.conn.cursor()
 
     def get_conn(self):
         conn = self.pool.connection()
-        return conn.cursor(cursorclass=MySQLdb.cursors.DictCursor)
+        return conn.cursor()
 
     def do_sqls(self, params_list):
         # 执行多条sql
         sql = ''
+
         try:
             for params in params_list:
-
                 sql_type = params[self.sql_constants.SQL_TYPE]
                 table_name = params[self.sql_constants.TABLE_NAME]
                 dict_data = params[self.sql_constants.DICT_DATA]
@@ -68,14 +75,14 @@ class ModelBase(SqlBuilder):
                 elif sql_type == self.sql_constants.DELETE:
                     # 删除
                     sql = self.build_delete(table_name, dict_data)
+                self.logger.info('sql:{}, value: {}'.format(sql, value_tuple))
                 self.cursor.execute(sql, value_tuple)
             if params_list:
                 self.conn.commit()
                 return self.sql_constants.SUCCESS
-        except Exception, e:
+        except Exception as e:
             self.conn.rollback()
-            print Exception, ':', e
-            print sql
+            self.logger.exception(e)
             return None
 
     def page_find(self, table_name, params, value_tuple, auto_commit=True):
@@ -95,10 +102,8 @@ class ModelBase(SqlBuilder):
             dic_rows = self.cursor.fetchone()
 
             return [dict_list, dic_rows[self.sql_constants.ROW_COUNT] if dic_rows else 0]
-        except Exception, e:
-            print sql
-            print sql_count
-            print Exception, ':', e
+        except Exception as e:
+            self.logger.exception(e)
             return None
 
     def get_rows(self, table_name, params, value_tuple, auto_commit=True):
@@ -113,9 +118,8 @@ class ModelBase(SqlBuilder):
             dic_rows = self.cursor.fetchone()
 
             return dic_rows[self.sql_constants.ROW_COUNT] if dic_rows else 0
-        except Exception, e:
-            print sql_count
-            print Exception, ':', e
+        except Exception as e:
+            self.logger.exception(e)
             return 0
 
     def find(self, table_name, params={}, value_tuple=(), str_type='one', auto_commit=True):
@@ -132,11 +136,8 @@ class ModelBase(SqlBuilder):
                 return self.cursor.fetchall()
             else:
                 return self.cursor.fetchone()
-        except Exception, e:
-            print sql
-            import traceback
-            print traceback.format_exc()
-            print Exception, ':', e
+        except Exception as e:
+            self.logger.exception(e)
             return False
 
     def insert(self, table_name, params, value_tuple, auto_commit=True):
@@ -154,10 +155,8 @@ class ModelBase(SqlBuilder):
             result = self.sql_constants.SUCCESS.copy()
             result['last_id'] = id
             return result
-        except Exception, e:
-            print sql
-            print value_tuple
-            print Exception, ':', e
+        except Exception as e:
+            self.logger.exception(e)
             return None
 
     def batch_insert(self, table_name, params, value_tuple, auto_commit=True):
@@ -175,10 +174,8 @@ class ModelBase(SqlBuilder):
             if auto_commit:
                 self.conn.commit()
             return self.sql_constants.SUCCESS
-        except Exception, e:
-            print sql
-            print value_tuple
-            print Exception, ':', e
+        except Exception as e:
+            self.logger.exception(e)
             return None
 
     def update(self, table_name, params, value_tuple, auto_commit=True):
@@ -188,14 +185,14 @@ class ModelBase(SqlBuilder):
         :return: 
         """
         sql = self.build_update(table_name, params)
+        self.logger.info('sql:{}, value: {}'.format(sql, value_tuple))
         try:
             self.cursor.execute(sql, value_tuple)
             if auto_commit:
                 self.conn.commit()
             return self.sql_constants.SUCCESS
-        except Exception, e:
-            print sql
-            print Exception, ':', e
+        except Exception as e:
+            self.logger.exception(e)
             return None
 
     def delete(self, table_name, params, value_tuple, auto_commit=True):
@@ -210,9 +207,8 @@ class ModelBase(SqlBuilder):
             if auto_commit:
                 self.conn.commit()
             return self.sql_constants.SUCCESS
-        except Exception, e:
-            print sql
-            print Exception, ':', e
+        except Exception as e:
+            self.logger.exception(e)
             return None
 
     def do_sqls_orm(self, params_list):
@@ -238,10 +234,9 @@ class ModelBase(SqlBuilder):
             if params_list:
                 self.conn.commit()
                 return self.sql_constants.SUCCESS
-        except Exception, e:
+        except Exception as e:
             self.conn.rollback()
-            print Exception, ':', e
-            print sql
+            self.logger.exception(e)
             return None
 
     def page_find_orm(self, table_name, dict_data, params):
@@ -264,10 +259,8 @@ class ModelBase(SqlBuilder):
                 'row_count': dic_rows[self.sql_constants.ROW_COUNT] if dic_rows else 0
             }
             return data
-        except Exception, e:
-            print sql
-            print sql_count
-            print Exception, ':', e
+        except Exception as e:
+            self.logger.exception(e)
             return None
 
     def get_rows_orm(self, table_name, dict_data, params):
@@ -282,9 +275,8 @@ class ModelBase(SqlBuilder):
             dic_rows = self.cursor.fetchone()
 
             return dic_rows[self.sql_constants.ROW_COUNT] if dic_rows else 0
-        except Exception, e:
-            print sql_count
-            print Exception, ':', e
+        except Exception as e:
+            self.logger.exception(e)
             return 0
 
     def find_orm(self, table_name, dict_data, params={}, str_type='one'):
@@ -301,9 +293,8 @@ class ModelBase(SqlBuilder):
                 return self.cursor.fetchall()
             else:
                 return self.cursor.fetchone()
-        except Exception, e:
-            print sql
-            print Exception, ':', e
+        except Exception as e:
+            self.logger.exception(e)
             return False
 
     def insert_orm(self, table_name, dict_data, params, auto_commit=True):
@@ -321,10 +312,8 @@ class ModelBase(SqlBuilder):
             result = self.sql_constants.SUCCESS.copy()
             result['last_id'] = id
             return result
-        except Exception, e:
-            print sql
-            print value_tuple
-            print Exception, ':', e
+        except Exception as e:
+            self.logger.exception(e)
             return None
 
     def update_orm(self, table_name, dict_data, params, auto_commit=True):
@@ -339,9 +328,8 @@ class ModelBase(SqlBuilder):
             if auto_commit:
                 self.conn.commit()
             return self.sql_constants.SUCCESS
-        except Exception, e:
-            print sql
-            print Exception, ':', e
+        except Exception as e:
+            self.logger.exception(e)
             return None
 
     def delete_orm(self, table_name, dict_data, params, auto_commit=True):
@@ -356,13 +344,12 @@ class ModelBase(SqlBuilder):
             if auto_commit:
                 self.conn.commit()
             return self.sql_constants.SUCCESS
-        except Exception, e:
-            print sql
-            print Exception, ':', e
+        except Exception as e:
+            self.logger.exception(e)
             return None
 
     def __del__(self):
-
-        self.cursor.close()
-        self.conn.close()
+        pass
+        # self.cursor.close()
+        # self.conn.close()
         # self.db.close()

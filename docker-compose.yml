@@ -1,0 +1,39 @@
+
+version: '2'
+services:
+  python:
+    build: .
+    user: apps
+    privileged: true
+    ports:
+      - "9000:9000"
+    links:
+      - mysql
+      - redis
+    volumes:
+      - "/apps/conf/wmb2c:/apps/conf/wmb2c"
+      - "/apps/web/logs:/apps/web/logs"
+      - "/apps/web/shop-python:/apps/web/wm-b2c"
+
+    command: "/apps/python/python3/bin/supervisord -n -c /apps/web/src/supervisord.conf"
+    restart: always
+
+  redis:
+    image: redis:4
+    ports:
+      - "6379:6379"
+    volumes:
+      - "/apps/conf/wmb2c:/usr/local/etc/redis"
+      - "/apps/web/redis_data:/data"
+    command:
+      redis-server
+
+  mysql:
+    image: mysql:5.7.18
+    ports:
+      - "13538:3306"
+    volumes:
+      - "/apps/web/mysql_data:/var/lib/mysql"
+    environment:
+      - MYSQL_ROOT_PASSWORD=ab56b4d92b40713acc5af89985d4b786
+    command: ['--default-time-zone=+8:00']

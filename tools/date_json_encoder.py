@@ -1,9 +1,8 @@
 # -*- coding:utf-8 -*-
 
 """
-@author: delu
-@file: CJsonEncoder.py
-@time: 17/4/14 下午6:02
+@author: onlyfu
+@time: 20/4/17
 """
 import datetime
 import json
@@ -20,4 +19,4 @@ class CJsonEncoder(json.JSONEncoder):
         elif isinstance(obj, (decimal.Decimal,)):
             return str(obj)
         else:
-            return super.default(obj)
+            return super().default(obj)

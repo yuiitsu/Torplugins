@@ -7,19 +7,20 @@
 service 服务模块
 """
 import importlib
-from v1.conf.remote_controller_config import REMOTE_CONTROLLER
-from system_constants import SystemConstants
+
+from .system_constants import SystemConstants
+from tools.common_util import CommonUtil
 from tools.httputils import HttpUtils
-from source.redisbase import RedisBase
+from tools.logs import Logs
 import time
 
-redis = RedisBase()
-redis_conn = redis.get_conn()
+logger = Logs().logger
 
 
 class ServiceManager(object):
+
     @staticmethod
-    def do_local_service(service_path, method, params={}, version=''):
+    def do_local_service(service_path, method, params=None, version=''):
         """
         执行本地服务
         :param service_path: 
@@ -28,30 +29,16 @@ class ServiceManager(object):
         :param version: 
         :return: 
         """
-        start_time = int(1000 * time.time())
-        model = importlib.import_module(version + '.module.' + service_path)
-        service = model.Service()
+        path_version = CommonUtil.get_loader_version(service_path)
+        if path_version:
+            model = importlib.import_module('src.module.' + service_path)
+        else:
+            model = importlib.import_module('src.module.' + version + '.' + service_path)
 
-        # # 如果语言不存在，则默认为中文
-        # if 'language' not in params or not params['language']:
-        #     params['language'] = 'cn'
-        # language_module = importlib.import_module('language.' + params['language'])
-        # setattr(service, 'language_code', language_module.Code)
+        service = model.Service()
         func = getattr(service, method)
 
         result = func(params)
-        cost_time = int(time.time() * 1000) - start_time
-        # 发消息记录这些信息
-        # log_params = {
-        #     'service_path': service_path,
-        #     'method': method,
-        #     'params': json.dumps(params, cls=CJsonEncoder),
-        #     'cost_time': cost_time
-        # }
-        # if cmp(service_path, 'task.log.method.service') != 0:
-        #     redis_conn.lpush('task_data_list', json.dumps({'service_path': 'task.log.method.service',
-        #                                                    'method': 'create_log',
-        #                                                    'params': log_params}, cls=CJsonEncoder))
         return result
 
     @staticmethod
@@ -63,18 +50,18 @@ class ServiceManager(object):
         :return: 
         """
         try:
-            if cmp(http_type, 'post') == 0:
+            if http_type == 'post':
                 # 发送post请求
                 HttpUtils.do_post(url, params)
             else:
                 # 发送get请求
                 HttpUtils.do_get(url, params)
-        except Exception, e:
-            print Exception, ':', e
+        except Exception as e:
+            logger.exception(e)
             return SystemConstants.REMOTE_SERVICE_ERROR
 
     @staticmethod
-    def do_service(service_path='', method='', params='', version=''):
+    def do_service(service_path='', method='', params=None, version='', power=None):
         """
         执行服务
         :param service_path: 
@@ -84,8 +71,29 @@ class ServiceManager(object):
         :return: 
         """
         # 判断该服务是否需要远程支持
-        if service_path in REMOTE_CONTROLLER and method in REMOTE_CONTROLLER[service_path]:
-            url = REMOTE_CONTROLLER['host'] + REMOTE_CONTROLLER[service_path][method][0]
-            return ServiceManager.do_remote_service(url, params, http_type=REMOTE_CONTROLLER[service_path][method][1])
-        else:
-            return ServiceManager.do_local_service(service_path, method, params, version)
+        # if is_remote:
+        #     url = REMOTE_CONTROLLER['host'] + REMOTE_CONTROLLER[service_path][method][0]
+        #     return ServiceManager.do_remote_service(url, params, http_type=REMOTE_CONTROLLER[service_path][method][1])
+        # else:
+        return ServiceManager.do_local_service(service_path, method, params, version)
+
+    @staticmethod
+    def get_fun(service_path, method, params, version='v1'):
+        """
+        根据方法路径获取方法实例
+        :param service_path:
+        :param method:
+        :param params:
+        :param version:
+        :return:
+        """
+        model = importlib.import_module(version + '.module.' + service_path)
+        service = model.Service()
+
+        # 如果语言不存在，则默认为中文
+        if 'language' not in params or not params['language']:
+            params['language'] = 'cn'
+        language_module = importlib.import_module('language.' + params['language'])
+        setattr(service, 'language_code', language_module.Code)
+        func = getattr(service, method)
+        return func
